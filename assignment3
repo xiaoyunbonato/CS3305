@@ -1,0 +1,109 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <string.h>
+#include <pthread.h>
+
+// Written by Xiaoyun Bonato
+
+int port[2];
+int X, Y, S;
+int status;
+char buffer[100];
+
+// Excuting functions by thread 100 created in main
+// Reading X and Y from pipe
+// Adding X + Y together to create sum, S
+
+void *sum(void *thread_id)
+{
+    int *id = (int *)thread_id;
+
+    S = X + Y;
+    read(port[0], &X, 50);
+    read(port[0], &Y, 50);
+
+    printf("thread (TID %d) reads X = %d and Y = %d from the pipe\n", *id, X, Y);
+    write(port[1], &X, 50);
+    write(port[1], &Y, 50);
+    printf("thread (TID %d) writes X+Y = %d to the pipe\n", *id, S);
+}
+
+// Excuting functions by thread 101 created in main
+// Reading S from pipe, determining if S is odd or even
+
+void *odd_even(void *thread_id)
+{
+    int *id = (int *)thread_id;
+    read(port[0], &X, 50);
+    read(port[0], &Y, 50);
+    printf("thread (TID %d) reads X+Y= %d from the pipe\n", *id, S);
+
+    if (S % 2 == 0)
+        printf("thread (TID %d) identifies X+Y= %d as an even number\n", *id, S);
+
+    else
+        printf("thread (TID %d) identifies X+Y= %d as an odd number\n", *id, S);
+
+    write(port[1], &X, 50);
+    write(port[1], &Y, 50);
+
+    printf("thread (TID %d) writes X+Y = %d to the pipe\n", *id, S);
+
+    return 0;
+}
+
+// Excuting functions by thread 102 created in main
+// Program to Count Number of Digits in an Integer
+
+void *digit_count(void *thread_id)
+{
+    int *id = (int *)thread_id;
+    int count = 0;
+
+    read(port[0], &X, 50);
+    read(port[0], &Y, 50);
+    printf("thread (TID %d) reads X+Y = %d from the pipe\n", *id, S);
+    printf("thread (TID %d) identifies X+Y= %d", *id, S);
+
+    do
+    {
+        S /= 10;
+        ++count;
+    } while (S != 0);
+
+    printf(" as a %d digit number\n", count);
+}
+
+int main(int argc, char *argv[])
+{
+
+    status = pipe(port);
+
+    // Using argv to take user's input
+    X = atoi(argv[1]);
+    Y = atoi(argv[2]);
+
+    printf("parent (PID %d) receives X = \"%d\" and Y = \"%d\" from the user\n", getpid(), X, Y);
+    printf("parent (PID %d) writes X = \"%d\" and Y = \"%d\" to the pipe\n", getpid(), X, Y);
+
+    write(port[1], &X, 50);
+    write(port[1], &Y, 50);
+
+    // Initializing threads and ID's
+    pthread_t t1, t2, t3;
+    int tid1 = 100;
+    int tid2 = 101;
+    int tid3 = 102;
+
+    // Creating and joining each thread to call functions
+    pthread_create(&t1, NULL, sum, &tid1);
+    pthread_create(&t2, NULL, odd_even, &tid2);
+    pthread_create(&t3, NULL, digit_count, &tid3);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    pthread_join(t3, NULL);
+}
